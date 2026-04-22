@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Interactive Bifurcation Explorer</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', Arial, sans-serif;
+    background: #f4f4f6;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 24px 16px;
+  }
+  header {
+    text-align: center;
+    margin-bottom: 20px;
+  }
+  header h1 {
+    font-size: 20px;
+    font-weight: 700;
+    color: #1a1a2e;
+    letter-spacing: -0.3px;
+  }
+  header p {
+    font-size: 13px;
+    color: #666;
+    margin-top: 4px;
+  }
+  header .eq {
+    font-size: 14px;
+    color: #444;
+    margin-top: 6px;
+    font-style: italic;
+  }
+  .main-card {
+    background: white;
+    border-radius: 14px;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.10);
+    padding: 24px;
+    width: 100%;
+    max-width: 920px;
+  }
+  .panels {
+    display: flex;
+    gap: 20px;
+    align-items: flex-start;
+  }
+  .panel { flex: 1; min-width: 0; }
+  .panel-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #888;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    margin-bottom: 6px;
+  }
+  canvas {
+    width: 100%;
+    display: block;
+    border-radius: 10px;
+    border: 1px solid #e0e0e0;
+    cursor: crosshair;
+    background: #fafafa;
+  }
+  #ppCanvas { cursor: default; }
+  .hint {
+    font-size: 11px;
+    color: #aaa;
+    text-align: center;
+    margin-top: 5px;
+  }
+  #infoPanel {
+    margin-top: 16px;
+    background: #f9f9fb;
+    border-radius: 10px;
+    border: 1px solid #e8e8ee;
+    padding: 14px 18px;
+    display: flex;
+    gap: 32px;
+    align-items: center;
+    flex-wrap: wrap;
+    min-height: 56px;
+  }
+  .info-kind {
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: -0.3px;
+    min-width: 140px;
+  }
+  .info-vals {
+    font-family: 'Courier New', monospace;
+    font-size: 12.5px;
+    color: #555;
+    line-height: 1.9;
+  }
+  .info-vals span { margin-right: 20px; }
+  .info-placeholder {
+    font-size: 13px;
+    color: #bbb;
+    font-style: italic;
+    width: 100%;
+    text-align: center;
+  }
+  .legend {
+    margin-top: 18px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 16px;
+    font-size: 11.5px;
+    color: #555;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .legend-dot {
+    width: 11px; height: 11px;
+    border-radius: 3px;
+    flex-shrink: 0;
+  }
+  .legend-line {
+    width: 22px; height: 2px; flex-shrink: 0;
+  }
+  .legend-section {
+    font-size: 10px;
+    font-weight: 600;
+    color: #aaa;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    align-self: center;
+    margin-right: 2px;
+  }
+  hr.legend-sep {
+    border: none;
+    border-left: 1px solid #e0e0e0;
+    height: 16px;
+    margin: 0 4px;
+  }
+  .input-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin: 18px 0 14px;
+    padding: 14px 18px;
+    background: #f4f4f8;
+    border-radius: 10px;
+    border: 1px solid #e4e4ee;
+  }
+  .input-bar label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #555;
+    letter-spacing: 0.4px;
+  }
+  .input-bar input[type=number] {
+    width: 72px;
+    padding: 6px 10px;
+    border: 1px solid #ccc;
+    border-radius: 7px;
+    font-size: 13px;
+    font-family: 'Courier New', monospace;
+    color: #222;
+    background: white;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .input-bar input[type=number]:focus { border-color: #1a6faf; }
+  .input-bar button {
+    padding: 7px 18px;
+    border-radius: 7px;
+    border: none;
+    background: #1a1a2e;
+    color: white;
+    font-size: 12.5px;
+    font-weight: 600;
+    cursor: pointer;
+    letter-spacing: 0.3px;
+    transition: background 0.15s, transform 0.08s;
+  }
+  .input-bar button:hover  { background: #2a2a4e; }
+  .input-bar button:active { transform: scale(0.97); }
+  .input-bar .divider {
+    width: 1px; height: 24px;
+    background: #ddd;
+    margin: 0 4px;
+  }
+  .input-bar .input-hint {
+    font-size: 11px;
+    color: #aaa;
+    font-style: italic;
+  }
+  #inputError {
+    font-size: 11px;
+    color: #c0392b;
+    font-weight: 600;
+    display: none;
+  }
+  @media (max-width: 640px) {
+    .panels { flex-direction: column; }
+    .info-kind { font-size: 15px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Interactive Bifurcation Explorer</h1>
+  <div class="eq">ẋ = ax + by &nbsp;&nbsp; ẏ = −x − y</div>
+  <p>Click anywhere on the <strong>ab-plane</strong> to see the equilibrium behavior</p>
+</header>
+
+<div class="main-card">
+  <div class="panels">
+    <div class="panel">
+      <div class="panel-label">ab-Plane &nbsp;·&nbsp; click to select (a, b)</div>
+      <canvas id="abCanvas" width="420" height="460"></canvas>
+      <div class="hint">b on y-axis &nbsp;·&nbsp; a on x-axis</div>
+    </div>
+    <div class="panel">
+      <div class="panel-label">Phase Portrait</div>
+      <canvas id="ppCanvas" width="420" height="460"></canvas>
+      <div class="hint" id="ppHint">waiting for selection...</div>
+    </div>
+  </div>
+
+  <!-- Manual input bar -->
+  <div class="input-bar">
+    <label for="inputA">a =</label>
+    <input type="number" id="inputA" step="0.1" value="" placeholder="e.g. 0.5">
+    <label for="inputB">b =</label>
+    <input type="number" id="inputB" step="0.1" value="" placeholder="e.g. 2.0">
+    <button onclick="handleManualInput()">Plot &#x2192;</button>
+    <div class="divider"></div>
+    <span class="input-hint">or just click anywhere on the ab-plane above</span>
+    <span id="inputError">⚠ please enter valid numbers for a and b</span>
+  </div>
+
+  <div id="infoPanel">
+    <div class="info-placeholder">← Click a point on the ab-plane to classify it and draw its phase portrait</div>
+  </div>
+
+  <div class="legend">
+    <span class="legend-section">Regions</span>
+    <div class="legend-item"><div class="legend-dot" style="background:#f4a261;opacity:0.85"></div> Saddle</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#1a6faf;opacity:0.85"></div> Sink</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#48cae4;opacity:0.85"></div> Spiral Sink</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#e07b00;opacity:0.85"></div> Spiral Source</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#d62728;opacity:0.85"></div> Source</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#6a0572;opacity:0.85"></div> Center</div>
+    <hr class="legend-sep">
+    <span class="legend-section">Boundaries</span>
+    <div class="legend-item"><div class="legend-line" style="background:#111"></div> b = a (Det=0)</div>
+    <div class="legend-item"><div class="legend-line" style="background:#444;border-top:2px dashed #444;height:0"></div> a = 1 (T=0)</div>
+    <div class="legend-item"><div class="legend-line" style="background:#6a0572;border-top:2px dashed #6a0572;height:0"></div> Dis = 0 (parabola)</div>
+  </div>
+</div>
+
+<script>
+// ── Constants ─────────────────────────────────────────────────────────────────
+const A_MIN=-3, A_MAX=5, B_MIN=-3, B_MAX=8;
+
+const REGION_FILL = {
+  'Saddle':        [244,162, 97,155],
+  'Sink':          [ 26,111,175,165],
+  'Spiral Sink':   [ 72,202,228,155],
+  'Source':        [214, 39, 40,155],
+  'Spiral Source': [224,123,  0,155],
+  'Center':        [106,  5,114,155],
+  'Degenerate':    [180,180,180,120],
+};
+const REGION_COLOR = {
+  'Saddle':        '#c47030',
+  'Sink':          '#1a5a9a',
+  'Spiral Sink':   '#1a88b0',
+  'Source':        '#b02222',
+  'Spiral Source': '#b06000',
+  'Center':        '#6a0572',
+  'Degenerate':    '#777',
+};
+
+// ── Classification ────────────────────────────────────────────────────────────
+function classify(a, b) {
+  const T = a - 1, Det = b - a, Dis = T*T - 4*Det;
+  let kind;
+  if (Math.abs(Det) < 1e-9)  kind = 'Degenerate';
+  else if (Det < 0)           kind = 'Saddle';
+  else if (T < -1e-9)         kind = Dis >= 0 ? 'Sink' : 'Spiral Sink';
+  else if (T >  1e-9)         kind = Dis >= 0 ? 'Source' : 'Spiral Source';
+  else                        kind = Dis < 0  ? 'Center' : 'Degenerate';
+  return { T, Det, Dis, kind };
+}
+
+// ── AB Canvas ─────────────────────────────────────────────────────────────────
+const abCanvas = document.getElementById('abCanvas');
+const abCtx    = abCanvas.getContext('2d');
+const AW = abCanvas.width, AH = abCanvas.height;
+
+function abToPixel(a, b) {
+  return [
+    (a - A_MIN) / (A_MAX - A_MIN) * AW,
+    (B_MAX - b) / (B_MAX - B_MIN) * AH
+  ];
+}
+function pixelToAb(px, py) {
+  return [
+    A_MIN + (px / AW) * (A_MAX - A_MIN),
+    B_MAX  - (py / AH) * (B_MAX - B_MIN)
+  ];
+}
+
+// build background image once
+let bgCache = null;
+function buildBackground() {
+  const img = abCtx.createImageData(AW, AH);
+  const d = img.data;
+  for (let py = 0; py < AH; py++) {
+    for (let px = 0; px < AW; px++) {
+      const [a, b] = pixelToAb(px, py);
+      const { kind } = classify(a, b);
+      const [r, g, bl, al] = REGION_FILL[kind] || [180,180,180,120];
+      const i = (py * AW + px) * 4;
+      d[i]=r; d[i+1]=g; d[i+2]=bl; d[i+3]=al;
+    }
+  }
+  bgCache = img;
+}
+
+function drawABPlane(markerA, markerB) {
+  if (!bgCache) buildBackground();
+  abCtx.clearRect(0, 0, AW, AH);
+  abCtx.fillStyle = '#fafafa';
+  abCtx.fillRect(0, 0, AW, AH);
+  abCtx.putImageData(bgCache, 0, 0);
+
+  // ── grid & ticks ──────────────────────────────────────────────────────────
+  abCtx.strokeStyle = 'rgba(255,255,255,0.45)';
+  abCtx.lineWidth = 0.5; abCtx.setLineDash([]);
+  for (let a = Math.ceil(A_MIN); a <= A_MAX; a++) {
+    const [px] = abToPixel(a, 0);
+    abCtx.beginPath(); abCtx.moveTo(px, 0); abCtx.lineTo(px, AH); abCtx.stroke();
+  }
+  for (let b = Math.ceil(B_MIN); b <= B_MAX; b++) {
+    const [, py] = abToPixel(0, b);
+    abCtx.beginPath(); abCtx.moveTo(0, py); abCtx.lineTo(AW, py); abCtx.stroke();
+  }
+
+  // ── boundary 1: b = a (solid black) ──────────────────────────────────────
+  abCtx.strokeStyle = '#111'; abCtx.lineWidth = 2.2; abCtx.setLineDash([]);
+  abCtx.beginPath();
+  let first = true;
+  for (let a = A_MIN; a <= A_MAX; a += 0.04) {
+    const b = a;
+    if (b < B_MIN || b > B_MAX) continue;
+    const [px, py] = abToPixel(a, b);
+    first ? (abCtx.moveTo(px, py), first = false) : abCtx.lineTo(px, py);
+  }
+  abCtx.stroke();
+
+  // ── boundary 2: a = 1 (dashed dark grey) ─────────────────────────────────
+  abCtx.strokeStyle = '#444'; abCtx.lineWidth = 1.8; abCtx.setLineDash([7, 5]);
+  const [px1] = abToPixel(1, 0);
+  abCtx.beginPath(); abCtx.moveTo(px1, 0); abCtx.lineTo(px1, AH); abCtx.stroke();
+  abCtx.setLineDash([]);
+
+  // ── boundary 3: Dis=0 parabola b = a + (a-1)^2/4 ─────────────────────────
+  abCtx.strokeStyle = '#6a0572'; abCtx.lineWidth = 2; abCtx.setLineDash([8, 5]);
+  abCtx.beginPath(); first = true;
+  for (let a = A_MIN; a <= A_MAX; a += 0.025) {
+    const b = a + (a - 1) * (a - 1) / 4;
+    if (b < B_MIN || b > B_MAX || b < a - 0.01) continue;
+    const [px, py] = abToPixel(a, b);
+    first ? (abCtx.moveTo(px, py), first = false) : abCtx.lineTo(px, py);
+  }
+  abCtx.stroke(); abCtx.setLineDash([]);
+
+  // parabola vertex dot
+  const [vx, vy] = abToPixel(1, 1);
+  abCtx.beginPath(); abCtx.arc(vx, vy, 4, 0, 2 * Math.PI);
+  abCtx.fillStyle = '#6a0572'; abCtx.fill();
+  abCtx.strokeStyle = 'white'; abCtx.lineWidth = 1.2; abCtx.stroke();
+
+  // ── axis labels ───────────────────────────────────────────────────────────
+  abCtx.fillStyle = 'rgba(30,30,30,0.85)';
+  abCtx.font = 'bold 12px monospace';
+  abCtx.textAlign = 'right'; abCtx.fillText('b', 16, 13);
+  abCtx.textAlign = 'right'; abCtx.fillText('a →', AW - 3, AH - 4);
+
+  abCtx.fillStyle = 'rgba(60,60,60,0.75)'; abCtx.font = '10px monospace';
+  for (let a = -2; a <= 4; a++) {
+    if (a === 0) continue;
+    const [px, py] = abToPixel(a, B_MIN);
+    abCtx.textAlign = 'center'; abCtx.fillText(a, px, AH - 4);
+  }
+  for (let b = -2; b <= 7; b++) {
+    if (b === 0) continue;
+    const [px, py] = abToPixel(A_MIN, b);
+    abCtx.textAlign = 'left'; abCtx.fillText(b, 3, py + 3);
+  }
+
+  // ── region text labels ────────────────────────────────────────────────────
+  const labels = [
+    [0.5, -1.8, 'Saddle',        '#8a4820'],
+    [-1.6, 0.3, 'Sink',          '#0e3d70'],
+    [-1.0, 5.5, 'Spiral Sink',   '#0a5a7a'],
+    [3.2,  6.5, 'Spiral Source', '#7a3a00'],
+    [3.8,  2.5, 'Source',        '#7a1010'],
+  ];
+  labels.forEach(([a, b, txt, col]) => {
+    const [px, py] = abToPixel(a, b);
+    abCtx.font = 'bold 11px sans-serif';
+    abCtx.textAlign = 'center';
+    abCtx.fillStyle = col;
+    abCtx.fillText(txt, px, py);
+  });
+
+  // Center label
+  const [cx, cy] = abToPixel(1.1, 3.8);
+  abCtx.font = '10px sans-serif'; abCtx.fillStyle = '#6a0572'; abCtx.textAlign = 'left';
+  abCtx.fillText('Center', cx + 5, cy - 3);
+  abCtx.fillText('(a=1, b>1)', cx + 5, cy + 9);
+
+  // ── click marker ──────────────────────────────────────────────────────────
+  if (markerA != null) {
+    const [mx, my] = abToPixel(markerA, markerB);
+    const col = REGION_COLOR[classify(markerA, markerB).kind] || '#555';
+    // crosshair guides
+    abCtx.strokeStyle = col + '55'; abCtx.lineWidth = 0.8; abCtx.setLineDash([4, 4]);
+    abCtx.beginPath(); abCtx.moveTo(mx, 0); abCtx.lineTo(mx, AH); abCtx.stroke();
+    abCtx.beginPath(); abCtx.moveTo(0, my); abCtx.lineTo(AW, my); abCtx.stroke();
+    abCtx.setLineDash([]);
+    // dot
+    abCtx.beginPath(); abCtx.arc(mx, my, 7, 0, 2 * Math.PI);
+    abCtx.fillStyle = col; abCtx.fill();
+    abCtx.strokeStyle = 'white'; abCtx.lineWidth = 2; abCtx.stroke();
+  }
+}
+
+// ── RK4 ──────────────────────────────────────────────────────────────────────
+function rk4Step(a, b, x, y, dt) {
+  const f = (x, y) => a * x + b * y;
+  const g = (x, y) => -x - y;
+  const k1x=f(x,y),      k1y=g(x,y);
+  const k2x=f(x+dt*k1x/2,y+dt*k1y/2), k2y=g(x+dt*k1x/2,y+dt*k1y/2);
+  const k3x=f(x+dt*k2x/2,y+dt*k2y/2), k3y=g(x+dt*k2x/2,y+dt*k2y/2);
+  const k4x=f(x+dt*k3x,y+dt*k3y),     k4y=g(x+dt*k3x,y+dt*k3y);
+  return [
+    x + dt * (k1x + 2*k2x + 2*k3x + k4x) / 6,
+    y + dt * (k1y + 2*k2y + 2*k3y + k4y) / 6
+  ];
+}
+
+function integrate(a, b, x0, y0, T, dt) {
+  const xs = [x0], ys = [y0];
+  let x = x0, y = y0;
+  const sign = T >= 0 ? 1 : -1;
+  const steps = Math.abs(T / dt);
+  for (let i = 0; i < steps; i++) {
+    [x, y] = rk4Step(a, b, x, y, sign * Math.abs(dt));
+    if (Math.abs(x) > 9 || Math.abs(y) > 9) break;
+    xs.push(x); ys.push(y);
+  }
+  return [xs, ys];
+}
+
+// ── Phase Portrait ────────────────────────────────────────────────────────────
+const ppCanvas = document.getElementById('ppCanvas');
+const ppCtx    = ppCanvas.getContext('2d');
+const PW = ppCanvas.width, PH = ppCanvas.height;
+
+function w2p(x, y, lim) {
+  return [(x + lim) / (2 * lim) * PW, (lim - y) / (2 * lim) * PH];
+}
+
+function drawPhasePortrait(a, b, col) {
+  ppCtx.clearRect(0, 0, PW, PH);
+  ppCtx.fillStyle = '#fafafa'; ppCtx.fillRect(0, 0, PW, PH);
+  const lim = 3;
+
+  // grid
+  ppCtx.strokeStyle = '#ececec'; ppCtx.lineWidth = 0.6;
+  [-2, -1, 1, 2].forEach(v => {
+    const [x1,y1] = w2p(-lim, v, lim), [x2,y2] = w2p(lim, v, lim);
+    ppCtx.beginPath(); ppCtx.moveTo(x1,y1); ppCtx.lineTo(x2,y2); ppCtx.stroke();
+    const [x3,y3] = w2p(v, -lim, lim), [x4,y4] = w2p(v, lim, lim);
+    ppCtx.beginPath(); ppCtx.moveTo(x3,y3); ppCtx.lineTo(x4,y4); ppCtx.stroke();
+  });
+
+  // axes
+  ppCtx.strokeStyle = '#ccc'; ppCtx.lineWidth = 1;
+  const [ax1,ay1]=w2p(-lim,0,lim), [ax2,ay2]=w2p(lim,0,lim);
+  ppCtx.beginPath(); ppCtx.moveTo(ax1,ay1); ppCtx.lineTo(ax2,ay2); ppCtx.stroke();
+  const [bx1,by1]=w2p(0,-lim,lim), [bx2,by2]=w2p(0,lim,lim);
+  ppCtx.beginPath(); ppCtx.moveTo(bx1,by1); ppCtx.lineTo(bx2,by2); ppCtx.stroke();
+
+  // vector field
+  const gN = 14, step = 2 * lim / gN;
+  const scPx = PW / (2 * lim);
+  for (let i = 0; i <= gN; i++) for (let j = 0; j <= gN; j++) {
+    const x = -lim + i * step, y = -lim + j * step;
+    const u = a*x + b*y, v = -x - y;
+    const mag = Math.sqrt(u*u + v*v);
+    if (mag < 1e-10) continue;
+    const sc = step * 0.34 * scPx / mag;
+    const [px, py] = w2p(x, y, lim);
+    const dx = u * sc, dy = -v * sc;
+    ppCtx.strokeStyle = 'rgba(150,150,150,0.4)';
+    ppCtx.lineWidth = 0.8; ppCtx.setLineDash([]);
+    ppCtx.beginPath(); ppCtx.moveTo(px-dx/2,py-dy/2); ppCtx.lineTo(px+dx/2,py+dy/2); ppCtx.stroke();
+    const ang = Math.atan2(dy, dx), al = 4;
+    ppCtx.beginPath();
+    ppCtx.moveTo(px+dx/2, py+dy/2);
+    ppCtx.lineTo(px+dx/2-al*Math.cos(ang-.45), py+dy/2-al*Math.sin(ang-.45));
+    ppCtx.lineTo(px+dx/2-al*Math.cos(ang+.45), py+dy/2-al*Math.sin(ang+.45));
+    ppCtx.closePath();
+    ppCtx.fillStyle = 'rgba(150,150,150,0.4)'; ppCtx.fill();
+  }
+
+  // trajectories
+  const r = parseInt(col.slice(1,3),16);
+  const g2= parseInt(col.slice(3,5),16);
+  const bl= parseInt(col.slice(5,7),16);
+  const nSeeds = 14, r0 = lim * 0.80;
+
+  for (let i = 0; i < nSeeds; i++) {
+    const angle = 2 * Math.PI * i / nSeeds;
+    const x0 = r0 * Math.cos(angle), y0 = r0 * Math.sin(angle);
+
+    // forward
+    const [fxs, fys] = integrate(a, b, x0, y0, 10, 0.04);
+    ppCtx.strokeStyle = `rgba(${r},${g2},${bl},0.88)`;
+    ppCtx.lineWidth = 1.8; ppCtx.setLineDash([]);
+    ppCtx.beginPath();
+    fxs.forEach((x, k) => {
+      const [px, py] = w2p(x, fys[k], lim);
+      k === 0 ? ppCtx.moveTo(px, py) : ppCtx.lineTo(px, py);
+    });
+    ppCtx.stroke();
+
+    // backward dashed
+    const [bxs, bys] = integrate(a, b, x0, y0, -7, 0.04);
+    ppCtx.strokeStyle = `rgba(${r},${g2},${bl},0.48)`;
+    ppCtx.lineWidth = 1.4; ppCtx.setLineDash([5, 3]);
+    ppCtx.beginPath();
+    bxs.forEach((x, k) => {
+      const [px, py] = w2p(x, bys[k], lim);
+      k === 0 ? ppCtx.moveTo(px, py) : ppCtx.lineTo(px, py);
+    });
+    ppCtx.stroke(); ppCtx.setLineDash([]);
+  }
+
+  // equilibrium dot
+  const [ox, oy] = w2p(0, 0, lim);
+  ppCtx.beginPath(); ppCtx.arc(ox, oy, 5.5, 0, 2 * Math.PI);
+  ppCtx.fillStyle = col; ppCtx.fill();
+  ppCtx.strokeStyle = 'white'; ppCtx.lineWidth = 2; ppCtx.stroke();
+
+  // axis labels
+  ppCtx.fillStyle = 'rgba(80,80,80,0.75)'; ppCtx.font = 'bold 11px monospace';
+  ppCtx.textAlign = 'center'; ppCtx.fillText('x', PW - 8, PH/2 - 5);
+  ppCtx.textAlign = 'left';   ppCtx.fillText('y', PW/2 + 5, 11);
+
+  // tick labels
+  ppCtx.fillStyle = 'rgba(100,100,100,0.6)'; ppCtx.font = '9px monospace';
+  [-2,-1,1,2].forEach(v => {
+    const [px,py] = w2p(v, 0, lim);
+    ppCtx.textAlign = 'center'; ppCtx.fillText(v, px, py + 11);
+    const [px2,py2] = w2p(0, v, lim);
+    ppCtx.textAlign = 'right'; ppCtx.fillText(v, px2 - 3, py2 + 3);
+  });
+}
+
+// ── Placeholder ───────────────────────────────────────────────────────────────
+function drawPlaceholder() {
+  ppCtx.fillStyle = '#f5f5f7'; ppCtx.fillRect(0, 0, PW, PH);
+  ppCtx.fillStyle = '#c0c0c8';
+  ppCtx.font = '14px sans-serif'; ppCtx.textAlign = 'center';
+  ppCtx.fillText('← click the ab-plane', PW/2, PH/2 - 10);
+  ppCtx.fillText('to draw the phase portrait', PW/2, PH/2 + 12);
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+buildBackground();
+drawABPlane(null, null);
+drawPlaceholder();
+
+// ── Click Handler ─────────────────────────────────────────────────────────────
+function handleManualInput() {
+  const aVal = parseFloat(document.getElementById('inputA').value);
+  const bVal = parseFloat(document.getElementById('inputB').value);
+  const errEl = document.getElementById('inputError');
+  if (isNaN(aVal) || isNaN(bVal)) {
+    errEl.style.display = 'inline';
+    setTimeout(() => errEl.style.display = 'none', 2500);
+    return;
+  }
+  errEl.style.display = 'none';
+  applyPoint(aVal, bVal);
+}
+
+// allow pressing Enter in either input field
+['inputA','inputB'].forEach(id => {
+  document.getElementById(id).addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') handleManualInput();
+  });
+});
+
+function applyPoint(a, b) {
+  const { T, Det, Dis, kind } = classify(a, b);
+  const col = REGION_COLOR[kind] || '#555';
+  drawABPlane(a, b);
+  drawPhasePortrait(a, b, col);
+  document.getElementById('ppHint').textContent =
+    `a = ${a.toFixed(3)}   b = ${b.toFixed(3)}`;
+  document.getElementById('infoPanel').innerHTML = `
+    <div class="info-kind" style="color:${col}">${kind}</div>
+    <div class="info-vals">
+      <span>a = ${a.toFixed(4)}</span>
+      <span>b = ${b.toFixed(4)}</span><br>
+      <span>T = ${T.toFixed(4)}</span>
+      <span>Det = ${Det.toFixed(4)}</span>
+      <span>Dis = ${Dis.toFixed(4)}</span>
+    </div>`;
+}
+
+abCanvas.addEventListener('click', function(e) {
+  const rect = abCanvas.getBoundingClientRect();
+  const scaleX = abCanvas.width  / rect.width;
+  const scaleY = abCanvas.height / rect.height;
+  const px = (e.clientX - rect.left) * scaleX;
+  const py = (e.clientY - rect.top)  * scaleY;
+  const [a, b] = pixelToAb(px, py);
+  // sync input boxes with clicked value
+  document.getElementById('inputA').value = a.toFixed(3);
+  document.getElementById('inputB').value = b.toFixed(3);
+  applyPoint(a, b);
+});
+</script>
+</body>
+</html>
