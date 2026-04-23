@@ -420,7 +420,7 @@ function drawABPlane(markerA, markerB) {
   });
 
   // Center label
-  const [cx, cy] = abToPixel(1.1, 1.0);
+  const [cx, cy] = abToPixel(1.1, 0.5);
   abCtx.font = '10px sans-serif'; abCtx.fillStyle = '#6a0572'; abCtx.textAlign = 'left';
   abCtx.fillText('Center', cx + 5, cy - 3);
   abCtx.fillText('(a=1, b>1)', cx + 5, cy + 9);
